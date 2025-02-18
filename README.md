@@ -1,124 +1,196 @@
-# Arhitecturi-orientate-pe-servicii-
-Service Oriented Architecture
-# Securing a REST API
+# **NGINX Load Balancer Setup Guide**
 
-Securing a REST API is essential to prevent unauthorized access, data breaches, and malicious attacks. This tutorial demonstrates methods to secure a REST API built using Flask and FastAPI, including authentication, authorization, and rate limiting.
+This guide will walk you through installing, configuring, and testing an **NGINX Load Balancer** to distribute traffic across multiple backend servers.
 
-## Installing Required Modules
-Run the following commands in your terminal to install the necessary modules:
+## **Step 1: Install NGINX**
 
-```sh
-pip install flask pyjwt flask-jwt-extended flask-limiter secrets
+https://nginx.org/en/download.html
+
+## Step 2: Configure NGINX as a Load Balancer
+
+Go to nginx-version\conf and adit the file nginx.config
+
+### **Basic Load Balancer Configuration**
+
 ```
+worker_processes auto;
 
-## Introduction
-Below is a simple Flask application that creates a web server running on port 1610. It defines a public endpoint (`/public`) that returns a JSON response.
-
-```python
-from flask import Flask, jsonify
-
-app = Flask(__name__)
-
-@app.route('/public', methods=['GET'])
-def public_route():
-    return jsonify({"message": "This is a public endpoint"})
-
-if __name__ == '__main__':
-    app.run(debug=True, port=1610)
-```
-
-Save this code as `BasicApi.py` and run it using:
-
-```sh
-python BasicApi.py
-```
-
-## Authentication with API Keys
-API keys provide a simple authentication mechanism. Use the following script (`Secret.py`) to generate an API key:
-
-```python
-import secrets
-api_key = secrets.token_hex(32)
-print("Generated API Key:", api_key)
-```
-
-### Protecting an Endpoint with API Key Authentication
-
-The following Flask code secures an API endpoint (`/secure`) by requiring an API key in the request headers:
-
-```python
-from flask import Flask, request, jsonify
-
-app = Flask(__name__)
-API_KEY = "your_generated_api_key_here"
-
-@app.route('/secure', methods=['GET'])
-def secure_route():
-    key = request.headers.get('x-api-key')
-    if key != API_KEY:
-        return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"message": "Access granted"}), 200
-
-if __name__ == '__main__':
-    app.run(debug=True, port=1610)
-```
-
-## Authentication with JWT (JSON Web Token)
-JWT is a widely used authentication method for securing APIs.
-
-### Creating and Validating JWT Tokens
-The following code (`JWTApi.py`) implements JWT-based authentication:
-
-```python
-import jwt
-import datetime
-from flask import Flask, jsonify
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
-
-SECRET_KEY = "your_secret_key_here"
-
-app = Flask(__name__)
-app.config["JWT_SECRET_KEY"] = SECRET_KEY
-jwt = JWTManager(app)
-
-@app.route('/token', methods=['GET'])
-def get_token():
-    token = create_access_token(identity="user", additional_claims={"role": "user"}, expires_delta=datetime.timedelta(hours=1))
-    return jsonify({"token": token})
-
-if __name__ == '__main__':
-    app.run(debug=True, port=1620)
-```
-
-### Extracting the Current User
-Authenticated users can retrieve their identity from a JWT token:
-
-```python
-@app.route('/protected', methods=['GET'])
-@jwt_required()
-def protected_route():
-    current_user = get_jwt_identity()
-    return jsonify({"message": "Token is valid", "user": current_user}), 200
-```
-
-## Role-Based Access Control (RBAC)
-RBAC ensures that only authorized users can access certain resources.
-
-```python
-user_roles = {
-    "admin": ["read", "write", "delete"],
-    "user": ["read"]
+events {
+    worker_connections 1024;
 }
 
-@app.route('/admin', methods=['GET'])
-@jwt_required()
-def admin_route():
-    current_user_role = get_jwt()['role']
-    if "write" not in user_roles.get(current_user_role, []):
-        return jsonify({"error": "Unauthorized access"}), 403
-    return jsonify({"message": "Admin access granted"}), 200
+http {
+    upstream backend_servers {
+        server 192.168.1.101:5000;
+        server 192.168.1.102:5000;
+        server 192.168.1.103:5000;
+    }
+
+    server {
+        listen 80;
+
+        location / {
+            proxy_pass http://backend_servers;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+    }
+}
+
 ```
 
-## Conclusion
-By implementing API key authentication, JWT authentication, role-based access control, and rate limiting, you can significantly enhance the security of your REST API. Always ensure that your API is protected against unauthorized access and potential threats.
+## **Step 3: Load-balancing Algorithms**
 
+NGINX supports different **load-balancing methods**:
+
+### **1. Round Robin (Default)**
+
+```
+
+upstream backend_servers {
+    server 192.168.1.101:5000;
+    server 192.168.1.102:5000;
+}
+
+```
+
+**Requests are distributed evenly** among the servers.
+
+### **2. Least Connections**
+
+```
+
+upstream backend_servers {
+    least_conn;
+    server 192.168.1.101:5000;
+    server 192.168.1.102:5000;
+}
+
+```
+
+**Requests go to the server with the fewest active connections.**
+
+### **3. IP Hash (Sticky Sessions)**
+
+```
+
+upstream backend_servers {
+    ip_hash;
+    server 192.168.1.101:5000;
+    server 192.168.1.102:5000;
+}
+
+```
+
+**Requests from the same client IP go to the same server.**
+
+---
+
+## **Step 4: Apply and Restart NGINX**
+
+It is important to close it and open it again for the changes to take effect
+
+### **Check Configuration for Errors**
+
+```powershell
+PS D:\Programs\nginx-1.27.4> .\nginx -t
+nginx: the configuration file D:\Programs\nginx-1.27.4/conf/nginx.conf syntax is ok
+nginx: configuration file D:\Programs\nginx-1.27.4/conf/nginx.conf test is successful
+PS D:\Programs\nginx-1.27.4>
+
+```
+
+### **Restart NGINX**
+
+```bash
+start nginx
+
+```
+
+## **Step 5: Enable Health Checks**
+
+To remove failed servers automatically, add:
+
+```
+upstream backend_servers {
+    server 192.168.1.101:5000 max_fails=3 fail_timeout=30s;
+    server 192.168.1.102:5000 max_fails=3 fail_timeout=30s;
+}
+
+```
+
+This prevents NGINX from forwarding traffic to unhealthy servers.
+
+---
+
+## **Step 6: Accessing from Python**
+
+If you want to send requests to the load balancer from Python
+
+```python
+import subprocess
+import time
+
+def start_flask_auth_app():
+    command = ['python', 'auth/AuthService.py']
+    process = subprocess.Popen(command)
+    print("Flask auth app started")
+    return process
+
+def start_flask_animal_app_on_port(port):
+    command = ['python', 'services/Animal.py', str(port)]
+    process = subprocess.Popen(command)
+    print(f"Flask animal app started on port {port}")
+    return process
+
+def start_flask_book_app_on_port(port):
+    command = ['python', 'services/Book.py', str(port)]
+    process = subprocess.Popen(command)
+    print(f"Flask book app started on port {port}")
+    return process
+
+def start_notification_app():
+    command = ['python', 'services/Notification.py']
+    process = subprocess.Popen(command)
+    print("Notification app started")
+    return process
+
+def start_multiple_apps():
+    animal_ports = [1807, 1808]
+    book_ports = [1809, 1810]
+
+    processes = []
+
+    # Start authentication service
+    processes.append(start_flask_auth_app())
+    time.sleep(1)
+
+    # Start notification service
+    processes.append(start_notification_app())
+    time.sleep(1)
+
+    # Start animal services
+    for port in animal_ports:
+        processes.append(start_flask_animal_app_on_port(port))
+        time.sleep(1)
+
+    # Start book services
+    for port in book_ports:
+        processes.append(start_flask_book_app_on_port(port))
+        time.sleep(1)
+
+    try:
+        while True:
+            time.sleep(60)
+    except KeyboardInterrupt:
+        for process in processes:
+            process.terminate()
+        print("All Flask apps stopped.")
+
+if __name__ == "__main__":
+    start_multiple_apps()
+
+```
+
+You now have a fully functioning **load-balanced system** with multiple services managed by **NGINX**.
