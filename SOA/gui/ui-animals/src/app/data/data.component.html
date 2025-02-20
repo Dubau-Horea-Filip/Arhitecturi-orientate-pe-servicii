@@ -1,0 +1,111 @@
+<div class="container mt-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="text-primary font-weight-bold">Adoption List</h2>
+    <button class="btn btn-gradient" (click)="refreshData()">Refresh</button>
+  </div>
+
+  <!-- Table with modern design -->
+  <div class="table-responsive">
+    <table class="table table-striped table-bordered shadow-sm">
+      <thead class="table-dark text-white">
+        <tr>
+          <th>Name</th>
+          <th>Species</th>
+          <th>Breed</th>
+          <th>Age</th>
+          <th>Health Status</th>
+          <th>Arrival Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let animal of animals" class="align-middle">
+          <td>{{ animal.name }}</td>
+          <td>{{ animal.species }}</td>
+          <td>{{ animal.breed }}</td>
+          <td>{{ animal.age }}</td>
+          <td>{{ animal.health_status }}</td>
+          <td>{{ animal.arrival_date?.$date | date: 'short' }}</td>
+          <td class="text-center">
+            <button
+              class="btn btn-sm btn-outline-primary m-1 shadow-sm"
+              *ngIf="!animal.adoption_status"
+              (click)="adoptAnimal(animal)">
+              Adopt Me!
+            </button>
+            <button
+              class="btn btn-sm btn-outline-danger m-1 shadow-sm"
+              *ngIf="animal.adoption_status"
+              disabled>
+              Adopted
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Optional: Add custom CSS for a modern look -->
+<style>
+  /* Table styles */
+  .table th, .table td {
+    vertical-align: middle;
+    text-align: center;
+  }
+
+  .table-striped tbody tr:nth-of-type(odd) {
+    background-color: #f9f9f9;
+  }
+
+  .table-hover tbody tr:hover {
+    background-color: #f1f1f1;
+  }
+
+  .table-dark th {
+    background-color: #343a40;
+  }
+
+  /* Buttons styles */
+  .btn-gradient {
+    background: linear-gradient(90deg, #00b4d8, #0077b6);
+    border: none;
+    color: white;
+    transition: background 0.3s ease;
+  }
+
+  .btn-gradient:hover {
+    background: linear-gradient(90deg, #0077b6, #00b4d8);
+  }
+
+  .btn-outline-primary, .btn-outline-danger {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .btn-outline-primary:hover, .btn-outline-danger:hover {
+    background-color: #00b4d8;
+    color: white;
+    border-color: #00b4d8;
+  }
+
+  /* Add some space and shadows to buttons */
+  .btn-sm {
+    padding: 0.25rem 0.5rem;
+  }
+
+  .shadow-sm {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Header Styles */
+  h2 {
+    font-size: 2.2rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  /* Make sure the table scrolls on small screens */
+  .table-responsive {
+    overflow-x: auto;
+  }
+</style>
